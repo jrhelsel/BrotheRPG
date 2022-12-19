@@ -9,6 +9,8 @@ public class PlayerMovement : MonoBehaviour
     public Transform orientation;
     Rigidbody body;
     private float startYScale;
+    bool sprintToggle = false;
+    bool crouchToggle = false;
 
     [Header("Movement")]
     public float walkSpeed;
@@ -19,6 +21,9 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 moveDirection;
     public MovementState movementState;
     private MovementState previousMovementState;
+
+    [Header("Sprint Mode")]
+    public bool ToggleSprintActive = false;
 
     [Header("Jumping")]
     public float jumpForce;
@@ -100,6 +105,7 @@ public class PlayerMovement : MonoBehaviour
         {
             readyToJump = false;
             Jump();
+            //Use invoke so we don't have to wait and interrupt any other input
             Invoke(nameof(ResetJump), jumpCooldown);
         }
 
@@ -113,6 +119,9 @@ public class PlayerMovement : MonoBehaviour
             case MovementState.walking:
                 if (Input.GetKeyDown(sprintKey))
                 {
+                    if (ToggleSprintActive)
+                        sprintToggle = true;
+
                     moveSpeed = sprintSpeed;
 
                     movementState = MovementState.sprinting;
@@ -129,7 +138,10 @@ public class PlayerMovement : MonoBehaviour
                 }
                 else if (Input.GetKeyDown(crouchToggleKey))
                 {
+                    crouchToggle = true;
                     moveSpeed = crouchSpeed;
+                    transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
+                    body.AddForce(Vector3.down * 5f, ForceMode.Impulse);
 
                     movementState = MovementState.crouching;
                     previousMovementState = MovementState.walking;
@@ -142,16 +154,35 @@ public class PlayerMovement : MonoBehaviour
                 break;
 
             case MovementState.sprinting:
+
                 Vector3 flatVel = new Vector3(body.velocity.x, 0f, body.velocity.z);
 
-                if (Input.GetKeyDown(sprintKey) || flatVel.magnitude <= 0.9f * walkSpeed)
+                if (ToggleSprintActive)
                 {
-                    moveSpeed = walkSpeed;
+                    if (Input.GetKeyDown(sprintKey) || flatVel.magnitude <= 0.9f * walkSpeed)
+                    {
+                        sprintToggle = false;
+                        moveSpeed = walkSpeed;
 
-                    movementState = MovementState.walking;
-                    previousMovementState = MovementState.sprinting;
+                        movementState = MovementState.walking;
+                        previousMovementState = MovementState.sprinting;
+                    }
                 }
-                else if (Input.GetKey(crouchKey))
+                else
+                {
+                    if (!Input.GetKey(sprintKey) || flatVel.magnitude <= 0.9f * walkSpeed)
+                    {
+                        sprintToggle = false;
+                        moveSpeed = walkSpeed;
+
+                        movementState = MovementState.walking;
+                        previousMovementState = MovementState.sprinting;
+                    }
+                }
+
+
+
+                if (Input.GetKey(crouchKey))
                 {
                     moveSpeed = slideSpeed;
                     transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
@@ -162,6 +193,8 @@ public class PlayerMovement : MonoBehaviour
                 }
                 else if (Input.GetKeyDown(crouchToggleKey))
                 {
+                    crouchToggle = true;
+
                     moveSpeed = slideSpeed;
                     transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
                     body.AddForce(Vector3.down * 5f, ForceMode.Impulse);
@@ -293,8 +326,6 @@ public class PlayerMovement : MonoBehaviour
             {
                 cam_1P.SetActive(true);
                 cam_3P.SetActive(false);
-
-                cam_1P.transform.rotation = orientation.rotation;
 
                 inFirstPerson = true;
             }
