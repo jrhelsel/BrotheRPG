@@ -23,7 +23,11 @@ public class ThirdPersonCam : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Vector3 viewDir = player.position - new Vector3(transform.position.x, player.position.y, transform.position.z);
+        //Vector3 viewDir = player.position - new Vector3(transform.position.x, player.position.y, transform.position.z);
+        Vector3 viewDir = new Vector3(  player.position.x - transform.position.x, 
+                                        0, 
+                                        player.position.z - transform.position.z);
+
         orientation.forward = viewDir.normalized;
 
         float horizontalInput = Input.GetAxis("Horizontal");

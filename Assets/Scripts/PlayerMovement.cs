@@ -83,10 +83,7 @@ public class PlayerMovement : MonoBehaviour
         SpeedControl();
         SwitchCam();
 
-        if (grounded)
-            body.drag = groundDrag;
-        else
-            body.drag = 0;
+
     }
 
     private void FixedUpdate()
@@ -263,6 +260,11 @@ public class PlayerMovement : MonoBehaviour
             Vector3 limitedVel = flatVel.normalized * moveSpeed;
             body.velocity = new Vector3(limitedVel.x, body.velocity.y, limitedVel.z);
         }
+
+        if (grounded)
+            body.drag = groundDrag;
+        else
+            body.drag = 0;
     }
 
     private void Jump()
@@ -291,6 +293,8 @@ public class PlayerMovement : MonoBehaviour
             {
                 cam_1P.SetActive(true);
                 cam_3P.SetActive(false);
+
+                cam_1P.transform.rotation = orientation.rotation;
 
                 inFirstPerson = true;
             }
