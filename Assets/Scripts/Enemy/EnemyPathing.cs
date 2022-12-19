@@ -7,21 +7,18 @@ public class EnemyPathing : MonoBehaviour
 {
     
 
-    [SerializeField]
     Transform player;
-    [SerializeField]
     NavMeshAgent agent;
     
     RaycastHit losCheck;
     Vector3 playerDirection;
 
-    // Start is called before the first frame update
     void Start()
     {
-        
+        player = GameObject.FindGameObjectWithTag("Player").transform;
+        agent = gameObject.GetComponent<NavMeshAgent>();
     }
 
-    // Update is called once per frame
     void Update()
     {
         playerDirection = player.position - transform.position;
