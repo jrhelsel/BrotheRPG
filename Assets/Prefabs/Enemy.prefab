@@ -154,8 +154,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   visionCone: {fileID: 3591852371029094895}
   wanderRadius: 15
-  wanderWaitTime: 3
-  chaseSpeed: 3.8
+  wanderWaitTime: 2.1
+  chaseSpeed: 6
   wanderSpeed: 2
 --- !u!1 &3728972022681479078
 GameObject:

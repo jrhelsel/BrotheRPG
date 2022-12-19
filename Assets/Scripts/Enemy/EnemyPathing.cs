@@ -13,6 +13,7 @@ public class EnemyPathing : MonoBehaviour
         waiting,
         chasingPlayer
     }
+    private AiState aiState; 
 
     //Tweakable values
     [SerializeField][Range(1, 50)]
@@ -24,8 +25,6 @@ public class EnemyPathing : MonoBehaviour
     float chaseSpeed;
     [SerializeField]
     float wanderSpeed;
-
-    private AiState aiState; 
 
     Transform player;
     NavMeshAgent agent;
@@ -48,6 +47,7 @@ public class EnemyPathing : MonoBehaviour
         HandleState();
     }
 
+    
     void HandleState(){
         switch(aiState){
             case AiState.wandering:
@@ -83,6 +83,7 @@ public class EnemyPathing : MonoBehaviour
         }
     }
 
+    //Returns true if agent has reached the end of it's path
     bool ReachedDestination(){
         if (!agent.pathPending){
             if (agent.remainingDistance <= agent.stoppingDistance){
@@ -94,6 +95,7 @@ public class EnemyPathing : MonoBehaviour
         return false;
     }
 
+    //Fetch a random location on the NavMesh in radius
     public Vector3 RandomNavmeshLocation(float radius) {
          Vector3 randomDirection = Random.insideUnitSphere * radius;
          randomDirection += transform.position;
@@ -105,6 +107,7 @@ public class EnemyPathing : MonoBehaviour
          return finalPosition;
      }
 
+    //Check if player is in trigger for aggro
     void OnTriggerStay(Collider other){
         if(other.tag == "Player" && CheckLOS()){
             aiState = AiState.chasingPlayer;
@@ -112,6 +115,7 @@ public class EnemyPathing : MonoBehaviour
         }
     }
 
+    //Checks if there is an uninterrupted raycast from the enemy to the player
     bool CheckLOS(){
         playerDirection = player.position - transform.position;
 
