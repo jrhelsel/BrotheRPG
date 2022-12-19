@@ -5,7 +5,27 @@ using UnityEngine.AI;
 
 public class EnemyPathing : MonoBehaviour
 {
-    
+    [SerializeField]
+    Collider visionCone;
+
+    public enum AiState{
+        wandering,
+        waiting,
+        chasingPlayer
+    }
+
+    //Tweakable values
+    [SerializeField][Range(1, 50)]
+    int wanderRadius;
+    [SerializeField]
+    float wanderWaitTime;
+    float wanderWaitTimer;
+    [SerializeField]
+    float chaseSpeed;
+    [SerializeField]
+    float wanderSpeed;
+
+    private AiState aiState; 
 
     Transform player;
     NavMeshAgent agent;
@@ -17,16 +37,91 @@ public class EnemyPathing : MonoBehaviour
     {
         player = GameObject.FindGameObjectWithTag("Player").transform;
         agent = gameObject.GetComponent<NavMeshAgent>();
+        agent.destination = transform.position;
+
+        aiState = AiState.wandering;
+        wanderWaitTimer = 0;
     }
 
     void Update()
     {
+        HandleState();
+    }
+
+    void HandleState(){
+        switch(aiState){
+            case AiState.wandering:
+                agent.speed = wanderSpeed;
+                if(ReachedDestination()){
+                    aiState = AiState.waiting;
+                }
+                break;
+            case AiState.waiting:
+                if(wanderWaitTimer >= wanderWaitTime){
+                    //Reset timer, fetch new destination, change to wandering state
+                    wanderWaitTimer = 0;
+                    agent.destination = RandomNavmeshLocation(wanderRadius);
+                    aiState = AiState.wandering;
+                }
+                else{
+                    //Increment timer
+                    wanderWaitTimer += Time.deltaTime;
+                }
+
+                break;
+            case AiState.chasingPlayer:
+                agent.speed = chaseSpeed;
+                if (CheckLOS()) {
+                    agent.destination = player.position;
+                }
+                else if(ReachedDestination()){
+                    //If AI reaches players last known position and does not see him, go back to wandering
+                    aiState = AiState.wandering;
+                    Debug.Log("Lost player, going back to wandering.");
+                }
+                break;
+        }
+    }
+
+    bool ReachedDestination(){
+        if (!agent.pathPending){
+            if (agent.remainingDistance <= agent.stoppingDistance){
+                if (!agent.hasPath || agent.velocity.sqrMagnitude == 0f){
+                return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public Vector3 RandomNavmeshLocation(float radius) {
+         Vector3 randomDirection = Random.insideUnitSphere * radius;
+         randomDirection += transform.position;
+         NavMeshHit hit;
+         Vector3 finalPosition = Vector3.zero;
+         if (NavMesh.SamplePosition(randomDirection, out hit, radius, 1)) {
+             finalPosition = hit.position;            
+         }
+         return finalPosition;
+     }
+
+    void OnTriggerStay(Collider other){
+        if(other.tag == "Player" && CheckLOS()){
+            aiState = AiState.chasingPlayer;
+            Debug.Log("Chasing the player!");
+        }
+    }
+
+    bool CheckLOS(){
         playerDirection = player.position - transform.position;
 
         if (Physics.Raycast (transform.position, playerDirection, out losCheck)) {
             if (losCheck.transform == player) {
-                agent.destination = player.position;
+                return true;
             }
         }
+        return false;
     }
+
+
 }
