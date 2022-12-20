@@ -20,7 +20,6 @@ public class PlayerMovement : MonoBehaviour
     private float moveSpeed;
     private Vector3 moveDirection;
     public MovementState movementState;
-    private MovementState previousMovementState;
 
     [Header("Sprint Mode")]
     public bool ToggleSprintActive = false;
@@ -114,7 +113,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void StateHandler()
     {
-        switch(movementState)
+        Vector3 flatVel = new Vector3(body.velocity.x, 0f, body.velocity.z);
+
+        switch (movementState)
         {
             case MovementState.walking:
                 if (Input.GetKeyDown(sprintKey))
@@ -125,7 +126,6 @@ public class PlayerMovement : MonoBehaviour
                     moveSpeed = sprintSpeed;
 
                     movementState = MovementState.sprinting;
-                    previousMovementState = MovementState.walking;
                 }
                 else if (Input.GetKey(crouchKey))
                 {
@@ -134,7 +134,6 @@ public class PlayerMovement : MonoBehaviour
                     body.AddForce(Vector3.down * 5f, ForceMode.Impulse);
 
                     movementState = MovementState.crouching;
-                    previousMovementState = MovementState.walking;
                 }
                 else if (Input.GetKeyDown(crouchToggleKey))
                 {
@@ -144,18 +143,14 @@ public class PlayerMovement : MonoBehaviour
                     body.AddForce(Vector3.down * 5f, ForceMode.Impulse);
 
                     movementState = MovementState.crouching;
-                    previousMovementState = MovementState.walking;
                 }
                 else if (!grounded)
                 {
                     movementState = MovementState.air;
-                    previousMovementState = MovementState.walking;
                 }
                 break;
 
             case MovementState.sprinting:
-
-                Vector3 flatVel = new Vector3(body.velocity.x, 0f, body.velocity.z);
 
                 if (ToggleSprintActive)
                 {
@@ -165,22 +160,17 @@ public class PlayerMovement : MonoBehaviour
                         moveSpeed = walkSpeed;
 
                         movementState = MovementState.walking;
-                        previousMovementState = MovementState.sprinting;
                     }
                 }
                 else
                 {
                     if (!Input.GetKey(sprintKey) || flatVel.magnitude <= 0.9f * walkSpeed)
                     {
-                        sprintToggle = false;
                         moveSpeed = walkSpeed;
 
                         movementState = MovementState.walking;
-                        previousMovementState = MovementState.sprinting;
                     }
                 }
-
-
 
                 if (Input.GetKey(crouchKey))
                 {
@@ -189,7 +179,6 @@ public class PlayerMovement : MonoBehaviour
                     body.AddForce(Vector3.down * 5f, ForceMode.Impulse);
 
                     movementState = MovementState.sliding;
-                    previousMovementState = MovementState.sprinting;
                 }
                 else if (Input.GetKeyDown(crouchToggleKey))
                 {
@@ -200,40 +189,69 @@ public class PlayerMovement : MonoBehaviour
                     body.AddForce(Vector3.down * 5f, ForceMode.Impulse);
 
                     movementState = MovementState.sliding;
-                    previousMovementState = MovementState.sprinting;
                 }
                 else if (!grounded)
                 {
                     movementState = MovementState.air;
-                    previousMovementState = MovementState.sprinting;
                 }
                 break;
 
             case MovementState.crouching:
-                if (!Input.GetKey(crouchKey))
-                {
-                    moveSpeed = walkSpeed;
-                    transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
 
-                    movementState = MovementState.walking;
-                    previousMovementState = MovementState.crouching;
+                if (crouchToggle)
+                {
+                    if (Input.GetKeyDown(crouchToggleKey) || Input.GetKeyDown(crouchKey)) {
+                        crouchToggle = false;
+
+                        moveSpeed = walkSpeed;
+                        transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+
+                        movementState = MovementState.walking;
+                    }
+                }
+                else if (!crouchToggle)
+                {
+                    if (!Input.GetKey(crouchKey))
+                    {
+                        crouchToggle = false;
+
+                        moveSpeed = walkSpeed;
+                        transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+
+                        movementState = MovementState.walking;
+                    }
                 }
                 else if (!grounded)
                 {
                     movementState = MovementState.aircrouching;
-                    previousMovementState = MovementState.crouching;
                 }
                 break;
 
             case MovementState.sliding:
-                if (!Input.GetKey(crouchKey))
+                if (!crouchToggle && !Input.GetKey(crouchKey))
                 {
+
                     transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
 
-                    if (Input.GetKey(sprintKey))
+                    if (sprintToggle)
+                    {
+                        moveSpeed = sprintSpeed;
+
                         movementState = MovementState.sprinting;
-                    else
-                        movementState = MovementState.walking;
+                    }
+                    else if (!sprintToggle)
+                    { 
+                        if (Input.GetKey(sprintKey))
+                        {
+                            moveSpeed = sprintSpeed;
+                            movementState = MovementState.sprinting;
+                        }
+                        else
+                        {
+                            moveSpeed = walkSpeed;
+                            movementState = MovementState.walking;
+                        }
+                    }
                 }
                 else if (!grounded)
                 {
@@ -242,32 +260,49 @@ public class PlayerMovement : MonoBehaviour
                 break;
 
             case MovementState.air:
+                if (Input.GetKeyDown(sprintKey))
+                    sprintToggle = !sprintToggle;
+
                 if (grounded)
                 {
-                    if (previousMovementState == MovementState.walking)
+                    if (sprintToggle || Input.GetKey(sprintKey))
                     {
-                        movementState = MovementState.walking;
-                    }
-                    else if (previousMovementState == MovementState.sprinting)
-                    {
+                        moveSpeed = sprintSpeed;
                         movementState = MovementState.sprinting;
+                    }
+                    else
+                    {
+                        moveSpeed = walkSpeed;
+                        movementState = MovementState.walking;
                     }
                 }
                 else if (Input.GetKey(crouchKey))
                 {
+                    transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
                     movementState = MovementState.aircrouching;
                 }
                 break;
 
             case MovementState.aircrouching:
+
                 if (grounded)
                 {
-                    moveSpeed = crouchSpeed;
+                    if (flatVel.magnitude >= sprintSpeed)
+                    {
+                        transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+                        moveSpeed = slideSpeed;
+                        movementState = MovementState.sliding;
+                    }
+                    else
+                    {
+                        moveSpeed = crouchSpeed;
+                        movementState = MovementState.crouching;
+                    }
 
-                    movementState = MovementState.crouching;
                 }
-                else if (!Input.GetKey(crouchKey))
+                else if (!(Input.GetKey(crouchKey) || crouchToggle))
                 {
+                    transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
                     movementState = MovementState.air;
                 }
                 break;
