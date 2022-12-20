@@ -21,8 +21,7 @@ public class PlayerCam : MonoBehaviour
         rotationX = orientation.rotation.x;
         rotationY = orientation.rotation.y;
 
-        transform.rotation = Quaternion.Euler(rotationX, rotationY, 0);
-        orientation.rotation = Quaternion.Euler(0, rotationY, 0);
+        Debug.Log("y orientation: " + rotationY + "     should be: " + orientation.rotation.y);
     }
 
     // Update is called once per frame
@@ -38,6 +37,6 @@ public class PlayerCam : MonoBehaviour
         rotationX = Mathf.Clamp(rotationX, -90f, 90);
 
         transform.rotation = Quaternion.Euler(rotationX, rotationY, 0);
-        orientation.rotation = Quaternion.Euler(0, rotationY, 0);
+        orientation.rotation = Quaternion.Euler(orientation.rotation.x, rotationY, orientation.rotation.z);
     }
 }
