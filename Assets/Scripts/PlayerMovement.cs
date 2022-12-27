@@ -34,6 +34,9 @@ public class PlayerMovement : MonoBehaviour
     public float crouchSpeed;
     public float crouchYScale;
 
+    [Header("Dive")]
+    public float diveSpeed;
+
     [Header("Sliding")]
     public float slideSpeed;
 
@@ -66,7 +69,7 @@ public class PlayerMovement : MonoBehaviour
         crouching,
         sliding,
         air,
-        aircrouching
+        diving
     }
 
     // Start is called before the first frame update
@@ -223,7 +226,7 @@ public class PlayerMovement : MonoBehaviour
                 }
                 else if (!grounded)
                 {
-                    movementState = MovementState.aircrouching;
+                    movementState = MovementState.diving;
                 }
                 break;
 
@@ -255,7 +258,7 @@ public class PlayerMovement : MonoBehaviour
                 }
                 else if (!grounded)
                 {
-                    movementState = MovementState.aircrouching;
+                    movementState = MovementState.diving;
                 }
                 break;
 
@@ -279,11 +282,12 @@ public class PlayerMovement : MonoBehaviour
                 else if (Input.GetKey(crouchKey))
                 {
                     transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
-                    movementState = MovementState.aircrouching;
+                    DivePlayer();
+                    movementState = MovementState.diving;
                 }
                 break;
 
-            case MovementState.aircrouching:
+            case MovementState.diving:
 
                 if (grounded)
                 {
@@ -317,6 +321,14 @@ public class PlayerMovement : MonoBehaviour
             body.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
         else
             body.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
+    }
+
+    private void DivePlayer()
+    {
+        Debug.Log("Diving");
+        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+
+        body.AddForce(moveDirection.normalized * diveSpeed, ForceMode.Impulse);
     }
 
     private void SpeedControl()
