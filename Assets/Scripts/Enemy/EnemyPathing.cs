@@ -13,9 +13,14 @@ public class EnemyPathing : MonoBehaviour
     public enum AiState{
         wandering,
         waiting,
+        patrolling,
         chasingPlayer
     }
-    private AiState aiState; 
+    private AiState aiState;
+    
+    //State AI goes into when not chasing the player or waiting
+    [SerializeField]
+    AiState defaultAiState;
 
     //Tweakable values
     [SerializeField][Range(1, 50)]
@@ -27,6 +32,11 @@ public class EnemyPathing : MonoBehaviour
     float chaseSpeed;
     [SerializeField]
     float wanderSpeed;
+
+    [SerializeField]
+    PatrolRoute patrolRoute;
+    [SerializeField]
+    int currentPatrolPoint;
 
     Transform player;
     NavMeshAgent agent;
@@ -58,12 +68,32 @@ public class EnemyPathing : MonoBehaviour
                     aiState = AiState.waiting;
                 }
                 break;
+            case AiState.patrolling:
+                if(ReachedDestination()){
+                    aiState = AiState.waiting;
+                }
+                break;
             case AiState.waiting:
                 if(wanderWaitTimer >= wanderWaitTime){
-                    //Reset timer, fetch new destination, change to wandering state
+                    //Reset timer, fetch new destination, change to default state
                     wanderWaitTimer = 0;
-                    agent.destination = RandomNavmeshLocation(wanderRadius);
-                    aiState = AiState.wandering;
+                    if(defaultAiState == AiState.wandering){
+                        agent.destination = RandomNavmeshLocation(wanderRadius);
+                    }
+                    if(defaultAiState == AiState.patrolling){
+                        //Increment current patrol point
+                        if(currentPatrolPoint < patrolRoute.PatrolPoints().Length - 1){
+                            currentPatrolPoint++;
+                        }
+                        else{
+                            currentPatrolPoint = 0;
+                        }
+
+                        //Get next destination from patrol points
+                        agent.destination =  patrolRoute.PatrolPoints()[currentPatrolPoint].transform.position;
+                    }
+
+                    aiState = defaultAiState;
                 }
                 else{
                     //Increment timer
@@ -78,7 +108,7 @@ public class EnemyPathing : MonoBehaviour
                 }
                 else if(ReachedDestination()){
                     //If AI reaches players last known position and does not see him, go back to wandering
-                    aiState = AiState.wandering;
+                    aiState = defaultAiState;
                     Debug.Log("Lost player, going back to wandering.");
                 }
                 break;
