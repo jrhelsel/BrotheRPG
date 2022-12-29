@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using Unity.VisualScripting.Antlr3.Runtime;
 using UnityEngine;
 
@@ -11,11 +12,13 @@ public class PlayerMovement : MonoBehaviour
     private float startYScale;
     bool sprintToggle = false;
     bool crouchToggle = false;
+    private float groundAngle;
 
     [Header("Movement")]
     public float walkSpeed;
     public float sprintSpeed;
     public float groundDrag;
+    public float maxGroundAngle = 50;
     private float horizontalInput, verticalInput;
     private float moveSpeed;
     private Vector3 moveDirection;
@@ -34,16 +37,19 @@ public class PlayerMovement : MonoBehaviour
     public float crouchSpeed;
     public float crouchYScale;
 
-    [Header("Dive")]
+    [Header("Diving")]
     public float diveSpeed;
 
     [Header("Sliding")]
     public float slideSpeed;
+    public float slideTimerMax;
+    private float slideTimerCurrent;
 
     [Header("Ground Check")]
-    public float groundDistance;
+    public float playerHeight = 1;
     public Transform groundCheck;
     public LayerMask whatIsGround;
+    RaycastHit groundHit;
     bool grounded;
 
     [Header("Camera")]
@@ -79,23 +85,48 @@ public class PlayerMovement : MonoBehaviour
         body.freezeRotation = true;
         startYScale = transform.localScale.y;
         moveSpeed = walkSpeed;
+        movementState = MovementState.walking;
+        
+
+        slideTimerCurrent = 0;
     }
 
     // Update is called once per frame
     void Update()
     {
-        grounded = Physics.CheckSphere(groundCheck.position, groundDistance, whatIsGround);
-
+        GroundCheck();
         PlayerInput();
         SpeedControl();
-        SwitchCam();
 
-
+        //Spaghetti to be removed later
+        playerHeight = transform.localScale.y;
+        //End spaghetti
     }
 
     private void FixedUpdate()
     {
-        MovePlayer();
+        if(movementState != MovementState.diving)
+            MovePlayer();
+    }
+
+    private void GroundCheck()
+    {
+
+        //WIP
+/*        Physics.Raycast(transform.position, Vector3.down, out groundHit, playerHeight + 0.2f);
+
+        //Debug.Log(groundHit.);
+
+        if (groundHit.collider != null)
+            grounded = true;
+
+        if (Vector3.Angle(Vector3.up, groundHit.normal) < maxGroundAngle)
+        {
+                
+        }
+*/
+
+        grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight + 0.2f, whatIsGround.value);
     }
 
     private void PlayerInput()
@@ -112,6 +143,72 @@ public class PlayerMovement : MonoBehaviour
         }
 
         StateHandler();
+        SwitchCam();
+    }
+
+    private void SpeedControl()
+    {
+        Vector3 flatVel = new Vector3(body.velocity.x, 0f, body.velocity.z);
+
+        if (flatVel.magnitude > moveSpeed)
+        {
+            Vector3 limitedVel = flatVel.normalized * moveSpeed;
+            body.velocity = new Vector3(limitedVel.x, body.velocity.y, limitedVel.z);
+        }
+
+        if (grounded)
+            body.drag = groundDrag;
+        else
+            body.drag = 0;
+    }
+
+    private void MovePlayer()
+    {
+        moveDirection = (orientation.forward * verticalInput + orientation.right * horizontalInput).normalized;
+
+        if (grounded)
+            body.AddForce(moveDirection * moveSpeed * 10f, ForceMode.Force);
+        else
+            body.AddForce(moveDirection * moveSpeed * 10f * airMultiplier, ForceMode.Force);
+    }
+
+    private void DivePlayer()
+    {
+        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+
+        body.AddForce(moveDirection.normalized * diveSpeed, ForceMode.Impulse);
+    }
+
+    private void Jump()
+    {
+        body.velocity = new Vector3(body.velocity.x, 0f, body.velocity.z);
+        body.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+    }
+
+    private void ResetJump()
+    {
+        readyToJump = true;
+    }
+
+    private void SwitchCam()
+    {
+        if (Input.GetKeyDown(changePerspective))
+        {
+            if (inFirstPerson)
+            {
+                cam_1P.SetActive(false);
+                cam_3P.SetActive(true);
+
+                inFirstPerson = false;
+            }
+            else
+            {
+                cam_1P.SetActive(true);
+                cam_3P.SetActive(false);
+
+                inFirstPerson = true;
+            }
+        }
     }
 
     private void StateHandler()
@@ -120,6 +217,7 @@ public class PlayerMovement : MonoBehaviour
 
         switch (movementState)
         {
+            #region walking state
             case MovementState.walking:
                 if (Input.GetKeyDown(sprintKey))
                 {
@@ -152,7 +250,8 @@ public class PlayerMovement : MonoBehaviour
                     movementState = MovementState.air;
                 }
                 break;
-
+            #endregion
+            #region sprinting state
             case MovementState.sprinting:
 
                 if (ToggleSprintActive)
@@ -198,7 +297,8 @@ public class PlayerMovement : MonoBehaviour
                     movementState = MovementState.air;
                 }
                 break;
-
+            #endregion
+            #region crouching state
             case MovementState.crouching:
 
                 if (crouchToggle)
@@ -229,8 +329,17 @@ public class PlayerMovement : MonoBehaviour
                     movementState = MovementState.diving;
                 }
                 break;
-
+            #endregion
+            #region sliding state
             case MovementState.sliding:
+                slideTimerCurrent += Time.deltaTime;
+                if(slideTimerCurrent >= slideTimerMax){
+                    slideTimerCurrent = 0;
+                    moveSpeed = crouchSpeed;
+                    movementState = MovementState.crouching;
+                }
+
+
                 if (!crouchToggle && !Input.GetKey(crouchKey))
                 {
 
@@ -261,7 +370,8 @@ public class PlayerMovement : MonoBehaviour
                     movementState = MovementState.diving;
                 }
                 break;
-
+            #endregion
+            #region air state
             case MovementState.air:
                 if (Input.GetKeyDown(sprintKey))
                     sprintToggle = !sprintToggle;
@@ -282,19 +392,28 @@ public class PlayerMovement : MonoBehaviour
                 else if (Input.GetKey(crouchKey))
                 {
                     transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
+                    //Jeremy have dumb brain, transform.up * 0 probably very dumb. Jeremy dumb brain very sorry.
+                    //On a serious note adding this line did create an issue with simulataneous jump + crouch input.
+                    body.AddForce(transform.up * 0, ForceMode.VelocityChange);
+                    moveSpeed = diveSpeed * 3;
                     DivePlayer();
                     movementState = MovementState.diving;
                 }
                 break;
-
+            #endregion
+            #region diving state
             case MovementState.diving:
 
+                if(touchingWall && !grounded)
+                {
+                    transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+                }
                 if (grounded)
                 {
-                    if (flatVel.magnitude >= sprintSpeed)
+                    if (flatVel.magnitude >= slideSpeed)
                     {
-                        transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
                         moveSpeed = slideSpeed;
+                        transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
                         movementState = MovementState.sliding;
                     }
                     else
@@ -304,78 +423,24 @@ public class PlayerMovement : MonoBehaviour
                     }
 
                 }
-                else if (!(Input.GetKey(crouchKey) || crouchToggle))
-                {
-                    transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
-                    movementState = MovementState.air;
-                }
                 break;
+            #endregion
         }
     }
 
-    private void MovePlayer()
-    {
-        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+    //Handle Wall bonks
+    private bool touchingWall = false;
 
-        if (grounded)
-            body.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
-        else
-            body.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
-    }
-
-    private void DivePlayer()
-    {
-        Debug.Log("Diving");
-        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
-
-        body.AddForce(moveDirection.normalized * diveSpeed, ForceMode.Impulse);
-    }
-
-    private void SpeedControl()
-    {
-        Vector3 flatVel = new Vector3(body.velocity.x, 0f, body.velocity.z);
-
-        if (flatVel.magnitude > moveSpeed)
-        {
-            Vector3 limitedVel = flatVel.normalized * moveSpeed;
-            body.velocity = new Vector3(limitedVel.x, body.velocity.y, limitedVel.z);
-        }
-
-        if (grounded)
-            body.drag = groundDrag;
-        else
-            body.drag = 0;
-    }
-
-    private void Jump()
-    {
-        body.velocity = new Vector3(body.velocity.x, 0f, body.velocity.z);
-        body.AddForce(transform.up * jumpForce, ForceMode.Impulse);
-    }
-
-    private void ResetJump()
-    {
-        readyToJump = true;
-    }
-
-    private void SwitchCam()
-    {
-        if (Input.GetKeyDown(changePerspective))
-        {
-            if (inFirstPerson)
-            {
-                cam_1P.SetActive(false);
-                cam_3P.SetActive(true);
-
-                inFirstPerson = false;
-            }
-            else
-            {
-                cam_1P.SetActive(true);
-                cam_3P.SetActive(false);
-
-                inFirstPerson = true;
-            }
+    void OnCollisionEnter(Collision other){
+        if(other.gameObject.layer == LayerMask.NameToLayer("whatIsGround")){
+            touchingWall = true;
         }
     }
+
+    void OnCollisionExit(Collision other){
+        if(other.gameObject.layer == LayerMask.NameToLayer("whatIsGround")){
+            touchingWall = false;
+        }
+    }
+
 }
